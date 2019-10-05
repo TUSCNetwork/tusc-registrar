@@ -1,0 +1,17 @@
+tusc_api:
+  tusc_wallet_port: "8091"
+  tusc_wallet_ip: "localhost"
+  tusc_wallet_rpc_endpoint: "/rpc"
+  tusc_wallet_rpc_version: "2.0"
+  registrar_account_name: "tuscmpone"
+db:
+  host: "localhost"
+  user: "postgres"
+  password: "fakepass"
+  database: "tusc-swap"
+  port: 5432
+general:
+  testing: False
+  captcha_secret: "UNKNOWN"
+  ip_request_blocking_hours: 24
+  highest_block_number_handled: 8533137

@@ -1,0 +1,12 @@
+[Unit]
+Description=Gunicorn instance to serve tusc-registrar
+After=network.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user/registrar/tusc-registrar
+Environment="PATH=/home/ec2-user/registrar/tusc-registrar/env/bin"
+ExecStart=/home/ec2-user/registrar/tusc-registrar/env/bin/gunicorn --workers 3 --bind 127.0.0.1:8080 registrar_wsgi:app
+
+[Install]
+WantedBy=multi-user.target
