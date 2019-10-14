@@ -137,13 +137,13 @@ def get_account_public_key(account_name: str) -> str:
 def send_request(method_name: str, params: list, do_not_log_data=False) -> (dict, int):
     if general_cfg["testing"]:
         if method_name == "get_account":
-            return {"error": "failed"}, ErrorCodeSuccess
+            return {"error": "TEST RESPONSE: failed"}, ErrorCodeSuccess
         if method_name == "transfer":
             return {}, ErrorCodeSuccess
         if method_name == "list_account_balances":
             return {}, ErrorCodeSuccess
         if method_name == "register_account":
-            return {"error": "already in use"}, ErrorCodeSuccess
+            return {"error": "TEST RESPONSE: already in use"}, ErrorCodeSuccess
 
     # when error is ErrorCodeFailedWithResponse, pass back to caller.
     # When error is ErrorCodeFailedMethodNameResponse, handle per method_name
