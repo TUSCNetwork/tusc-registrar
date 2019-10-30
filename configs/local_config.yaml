@@ -1,14 +1,14 @@
 tusc_api:
-  tusc_wallet_port: "8091"
+  tusc_wallet_port: "5071"
   tusc_wallet_ip: "localhost"
   tusc_wallet_rpc_endpoint: "/rpc"
   tusc_wallet_rpc_version: "2.0"
-  registrar_account_name: "tuscmpone"
+  registrar_account_name: "testregistrar"
 db:
   host: "localhost"
   user: "postgres"
   password: "fakepass"
-  database: "tusc-swap"
+  database: "tusc-registrar"
   port: 5432
 general:
   testing: False
