@@ -69,6 +69,10 @@ def register_account():
     if 'account_name' in content and 'public_key' in content:
         res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
 
+        if 'wallet-restarted' in res:
+            # Resubmit request
+            res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
+
         if 'error' not in res:
             now = datetime.now()
             ip_addresses[ip_address] = now
