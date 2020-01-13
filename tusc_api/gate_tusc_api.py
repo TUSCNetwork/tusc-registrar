@@ -196,28 +196,26 @@ def send_request(method_name: str, params: list, do_not_log_data=False) -> (dict
 
 
 def handle_generic_tusc_errors(api_response_json: dict) -> (dict, int):
-    return DefaultErrorMessage, ErrorCodeFailedRestartedWallet
-    #
-    # if "data" in api_response_json["error"].keys():
-    #     if "stack" in api_response_json["error"]["data"].keys():
-    #         for stack_obj in api_response_json["error"]["data"]["stack"]:
-    #             if "format" in stack_obj:
-    #
-    #                 # Wallet is locked
-    #                 if "is_locked" in stack_obj["format"]:
-    #                     logger.error("Cannot perform operation, TUSC Wallet is locked")
-    #                     return DefaultErrorMessage, ErrorCodeFailedWithResponse
-    #             if "data" in stack_obj:
-    #                 if "msg" in stack_obj["data"]:
-    #                     if "invalid state" in stack_obj["data"]["msg"]:
-    #                         # Wallet in invalid state, needs to be restarted.
-    #                         logger.error("Cannot perform operation, TUSC Wallet is in invalid state")
-    #
-    #                         restart_wallet()
-    #
-    #                         return DefaultErrorMessage, ErrorCodeFailedRestartedWallet
-    #
-    # return api_response_json, ErrorCodeFailedMethodNameResponse
+    if "data" in api_response_json["error"].keys():
+        if "stack" in api_response_json["error"]["data"].keys():
+            for stack_obj in api_response_json["error"]["data"]["stack"]:
+                if "format" in stack_obj:
+
+                    # Wallet is locked
+                    if "is_locked" in stack_obj["format"]:
+                        logger.error("Cannot perform operation, TUSC Wallet is locked")
+                        return DefaultErrorMessage, ErrorCodeFailedWithResponse
+                if "data" in stack_obj:
+                    if "msg" in stack_obj["data"]:
+                        if "invalid state" in stack_obj["data"]["msg"]:
+                            # Wallet in invalid state, needs to be restarted.
+                            logger.error("Cannot perform operation, TUSC Wallet is in invalid state")
+
+                            restart_wallet()
+
+                            return DefaultErrorMessage, ErrorCodeFailedRestartedWallet
+
+    return api_response_json, ErrorCodeFailedMethodNameResponse
 
 
 def restart_wallet():
