@@ -51,7 +51,11 @@ def register_account():
                          str(general_cfg['ip_request_blocking_hours']) + " hours."}
 
     did_recaptcha_succeed = False
-    if 'recaptcha_response' in content:
+
+    if general_cfg['disable_recaptcha']:
+        did_recaptcha_succeed = True
+
+    if 'recaptcha_response' in content and did_recaptcha_succeed is not True:
         did_recaptcha_succeed = handle_captcha(content['recaptcha_response'], ip_address)
 
     if not did_recaptcha_succeed:
