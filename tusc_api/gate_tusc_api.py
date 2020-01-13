@@ -70,7 +70,7 @@ def does_account_exist(account_name: str) -> bool:
         return True
 
 
-def register_account(account_name: str, public_key: str) -> dict:
+def register_account(account_name: str, public_key: str, referrer: str) -> dict:
     # register_account <account_name> <owner-public_key> <active-public_key> <registrar_account>
     # <referrer_account> <referrer_percent> <broadcast>
     account_name_restrictions = "Account names must be more than 7 and less than 64 characters. " \
@@ -81,12 +81,16 @@ def register_account(account_name: str, public_key: str) -> dict:
     if len(account_name) > 63:
         return {"error": "Account name '" + account_name + "' is too long. " + account_name_restrictions}
 
+    ref = tusc_api_cfg["registrar_account_name"]
+    if referrer != "":
+        ref = referrer
+
     resp, error = send_request("register_account",
                                [account_name,
-                                public_key,
-                                public_key,
-                                tusc_api_cfg["registrar_account_name"],
-                                tusc_api_cfg["registrar_account_name"],
+                                public_key,  # Owner
+                                public_key,  # Active
+                                tusc_api_cfg["registrar_account_name"],  # Registrar
+                                ref,  # Referrer
                                 75,
                                 True], False)
 

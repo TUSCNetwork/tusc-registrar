@@ -57,8 +57,13 @@ def register_account():
     if not did_recaptcha_succeed:
         return {"error": "Failed reCAPTCHA validation"}
 
+    referrer = ""
+
+    if 'referrer' in content:
+        referrer = content['referrer']
+
     if 'account_name' in content and 'public_key' in content:
-        res = gate_tusc_api.register_account(content['account_name'], content['public_key'])
+        res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
 
         if 'error' not in res:
             now = datetime.now()
