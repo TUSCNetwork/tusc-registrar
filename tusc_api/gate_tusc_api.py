@@ -202,11 +202,12 @@ def handle_generic_tusc_errors(api_response_json: dict) -> (dict, int):
                     if "is_locked" in stack_obj["format"]:
                         logger.error("Cannot perform operation, TUSC Wallet is locked")
                         return DefaultErrorMessage, ErrorCodeFailedWithResponse
-    elif "message" in api_response_json["error"].keys():
-        if "invalid state" in api_response_json["error"]["message"]:
-            # Wallet in invalid state, needs to be restarted.
-            logger.error("Cannot perform operation, TUSC Wallet is in invalid state")
-            return DefaultErrorMessage, ErrorCodeFailedWithResponse
+                if "data" in stack_obj:
+                    if "msg" in stack_obj["data"]:
+                        if "invalid state" in stack_obj["data"]["msg"]:
+                            # Wallet in invalid state, needs to be restarted.
+                            logger.error("Cannot perform operation, TUSC Wallet is in invalid state")
+                            return DefaultErrorMessage, ErrorCodeFailedWithResponse
 
     return api_response_json, ErrorCodeFailedMethodNameResponse
 
