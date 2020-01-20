@@ -46,7 +46,7 @@ def register_account():
     content = request.json
     ip_address = request.headers.get('X-Real-IP')
 
-    if not is_ip_allowed(ip_address):
+    if not is_ip_allowed(ip_address) and not general_cfg['disable_ip_blocking']:
         return {"error": "For security purposes, you are only allowed to register an account every " +
                          str(general_cfg['ip_request_blocking_hours']) + " hours."}
 
