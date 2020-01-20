@@ -67,7 +67,10 @@ def register_account():
         referrer = content['referrer']
 
     if 'account_name' in content and 'public_key' in content:
-        res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
+        if general_cfg["testing"]:
+            res = gate_tusc_api.register_account('restart-wallet', content['public_key'], referrer)
+        else:
+            res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
 
         if 'wallet-restarted' in res:
             # Resubmit request
