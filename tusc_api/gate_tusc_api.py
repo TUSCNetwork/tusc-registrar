@@ -226,9 +226,10 @@ def restart_wallet():
     logger.info("Stopping TUSC Wallet")
     base_cmd = 'screen -S cli -p 0 -X stuff '
     subprocess.call(base_cmd + '"^C"', shell=True)
+    subprocess.call(base_cmd + '"^C"', shell=True)
 
     # Wait for it to die gracefully
-    time.sleep(5)
+    time.sleep(2)
 
     logger.info("Restarting TUSC Wallet")
     wallet_path_param = wallet_cfg["path"]
