@@ -46,19 +46,32 @@ def register_account():
     content = request.json
     ip_address = request.headers.get('X-Real-IP')
 
-    if not is_ip_allowed(ip_address):
+    if not is_ip_allowed(ip_address) and not general_cfg['disable_ip_blocking']:
         return {"error": "For security purposes, you are only allowed to register an account every " +
                          str(general_cfg['ip_request_blocking_hours']) + " hours."}
 
     did_recaptcha_succeed = False
-    if 'recaptcha_response' in content:
+
+    if general_cfg['disable_recaptcha']:
+        did_recaptcha_succeed = True
+
+    if 'recaptcha_response' in content and did_recaptcha_succeed is not True:
         did_recaptcha_succeed = handle_captcha(content['recaptcha_response'], ip_address)
 
     if not did_recaptcha_succeed:
         return {"error": "Failed reCAPTCHA validation"}
 
+    referrer = ""
+
+    if 'referrer' in content:
+        referrer = content['referrer']
+
     if 'account_name' in content and 'public_key' in content:
-        res = gate_tusc_api.register_account(content['account_name'], content['public_key'])
+        res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
+
+        if 'wallet-restarted' in res:
+            # Resubmit request
+            res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
 
         if 'error' not in res:
             now = datetime.now()

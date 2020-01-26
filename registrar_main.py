@@ -16,12 +16,16 @@ from tusc_api.webctrl_tusc_api import tusc_api
 import db_access.db as db
 from config import cfg
 
+# REMOVE ME
+from tusc_api import gate_tusc_api
+
 general_cfg = cfg["general"]
 
 if __name__ == '__main__':
-    logger.debug('Starting server')
-    db.initiate_database_connection()
-    app.logger = logger
-    app.register_blueprint(tusc_api)
-    app.run(host='0.0.0.0', port=8080)
+    gate_tusc_api.restart_wallet()
+    # logger.debug('Starting server')
+    # db.initiate_database_connection()
+    # app.logger = logger
+    # app.register_blueprint(tusc_api)
+    # app.run(host='0.0.0.0', port=8080)
 
