@@ -153,7 +153,11 @@ def send_request(method_name: str, params: list, do_not_log_data=False) -> (dict
         if method_name == "list_account_balances":
             return {}, ErrorCodeSuccess
         if method_name == "register_account":
-            return {"error": "TEST RESPONSE: already in use"}, ErrorCodeSuccess
+            if params[0] == 'restart-wallet':
+                restart_wallet()
+                return {"error": "TEST RESPONSE: restarted wallet"}, ErrorCodeFailedRestartedWallet
+            else:
+                return {"error": "TEST RESPONSE: already in use"}, ErrorCodeSuccess
 
     # when error is ErrorCodeFailedWithResponse, pass back to caller.
     # When error is ErrorCodeFailedMethodNameResponse, handle per method_name
@@ -222,9 +226,10 @@ def restart_wallet():
     logger.info("Stopping TUSC Wallet")
     base_cmd = 'screen -S cli -p 0 -X stuff '
     subprocess.call(base_cmd + '"^C"', shell=True)
+    subprocess.call(base_cmd + '"^C"', shell=True)
 
     # Wait for it to die gracefully
-    time.sleep(5)
+    time.sleep(2)
 
     logger.info("Restarting TUSC Wallet")
     wallet_path_param = wallet_cfg["path"]
