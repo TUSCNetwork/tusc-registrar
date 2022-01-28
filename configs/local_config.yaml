@@ -3,7 +3,7 @@ tusc_api:
   tusc_wallet_ip: "localhost"
   tusc_wallet_rpc_endpoint: "/rpc"
   tusc_wallet_rpc_version: "2.0"
-  registrar_account_name: "testregistrar"
+  registrar_account_name: "registration-faucet"
 db:
   host: "localhost"
   user: "postgres"
@@ -15,10 +15,10 @@ general:
   captcha_secret: "UNKNOWN"
   ip_request_blocking_hours: 24
   highest_block_number_handled: 8533137
-  disable_recaptcha: False
-  disable_ip_blocking: False
+  disable_recaptcha: True
+  disable_ip_blocking: True
 wallet:
-  path: "/home/ubuntu/wallet/cli_wallet"
-  chain_id: "5a64159ecf7214e8d072712ed9341cda01d9a8d9f8d6ac554decb41542497168"
+  path: "/home/tuscy/TUSC-v2.5.2/cli_wallet"
+  chain_id: "eb938e2a955e39e335120d0a99f3b9f8c04a9ed5690275ea5037d6bbadfc6cf3"
   wallet_password: "1"
   node_address: "wss://api.tusc.network:8443"

@@ -134,6 +134,15 @@ def get_account(account_name: str) -> dict:
         return resp
 
 
+def unlock(password: str) -> dict:
+    resp, error = send_request("unlock", [password], True)
+
+    if error == ErrorCodeFailedMethodNameResponse:
+        return DefaultErrorMessage
+    else:
+        return resp
+
+
 def get_account_public_key(account_name: str) -> str:
     resp, error = send_request("get_account", [account_name], True)
 
@@ -175,7 +184,11 @@ def send_request(method_name: str, params: list, do_not_log_data=False) -> (dict
     logger.debug("posting to: " + str(url))
 
     # TODO: Handle timeouts if wallet isn't online
-    r = requests.post(url, data=command_json)
+    try:
+        r = requests.post(url, data=command_json)
+    except Exception as err:
+        logger.error(err)
+        return {"error": "Internal server error"}, ErrorCodeFailedWithResponse
 
     try:
         api_response_json = json.loads(r.text)

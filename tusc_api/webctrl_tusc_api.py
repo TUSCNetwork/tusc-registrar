@@ -37,6 +37,18 @@ def suggest_brain_key():
     return gate_tusc_api.suggest_brain_key()
 
 
+@tusc_api.route('/wallet/unlock/<password>', methods=["GET"])
+def unlock(password):
+    logger.debug('unlock, request from ' + get_real_ip())
+    return gate_tusc_api.unlock(password)
+
+
+@tusc_api.route('/wallet/list_account_balances/<account_name>', methods=["GET"])
+def list_account_balances(account_name):
+    logger.debug('list_account_balances, request from ' + get_real_ip())
+    return gate_tusc_api.list_account_balances(account_name)
+
+
 # Accepted fields: account_name (str), public_key (str)
 @tusc_api.route('/wallet/register_account', methods=["POST"])
 def register_account():
@@ -46,7 +58,7 @@ def register_account():
     content = request.json
     ip_address = request.headers.get('X-Real-IP')
 
-    if not is_ip_allowed(ip_address) and not general_cfg['disable_ip_blocking']:
+    if not general_cfg['disable_ip_blocking'] and not is_ip_allowed(ip_address):
         return {"error": "For security purposes, you are only allowed to register an account every " +
                          str(general_cfg['ip_request_blocking_hours']) + " hours."}
 
