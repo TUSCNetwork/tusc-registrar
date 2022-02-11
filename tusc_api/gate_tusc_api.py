@@ -211,16 +211,14 @@ def start_wallet() -> subprocess:
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
     )
     wallet_proc.stdin.flush()
     successfully_started_message = 'Listening for incoming HTTP and WS RPC requests'
     http_issue = 'Invalid HTTP status'
     for x in range(4):
-        wallet_stderr = wallet_proc.stderr.readline()
+        wallet_stderr = wallet_proc.stderr.readline().decode('ascii').rstrip()
 
         logger.info(f"TUSC Wallet stderr: {wallet_stderr}")
-
         if successfully_started_message in wallet_stderr:
             logger.info("TUSC Wallet started successfully")
             return wallet_proc
