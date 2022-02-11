@@ -18,10 +18,18 @@ from config import cfg
 
 general_cfg = cfg["general"]
 logger.debug('Starting server')
-db.initiate_database_connection()
-app.logger = logger
-app.register_blueprint(tusc_api)
+
+try:
+    db.initiate_database_connection()
+    app.logger = logger
+    app.register_blueprint(tusc_api)
+    app.run()
+except Exception as e:
+    logger.error(f'Server experienced an error: {e}')
+    logger.debug('Shutting down server')
+    raise e
 
 if __name__ == '__main__':
     app.run()
+    logger.debug('Shutting down server')
 

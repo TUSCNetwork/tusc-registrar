@@ -22,10 +22,16 @@ from tusc_api import gate_tusc_api
 general_cfg = cfg["general"]
 
 if __name__ == '__main__':
-    gate_tusc_api.restart_wallet()
-    # logger.debug('Starting server')
-    # db.initiate_database_connection()
-    # app.logger = logger
-    # app.register_blueprint(tusc_api)
-    # app.run(host='0.0.0.0', port=8080)
+    logger.debug('Starting server')
+    try:
+        db.initiate_database_connection()
+        app.logger = logger
+        app.register_blueprint(tusc_api)
+        app.run(host='0.0.0.0', port=8080)
+    except Exception as e:
+        logger.error(f'Server experienced an error: {e}')
+        logger.debug('Shutting down server')
+        raise e
+    logger.debug('Shutting down server')
+
 
