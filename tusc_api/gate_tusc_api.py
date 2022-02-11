@@ -1,25 +1,19 @@
+import os
 import requests
 import json
 import logging
+import typing
 import db_access.db as db
-import time
 import subprocess
-from config import cfg
+from config import tusc_api_cfg, wallet_cfg
 
 logger = logging.getLogger('root')
 logger.debug('loading')
 
-DefaultErrorMessage = {"error": "Something went wrong, please contact tusc support"}
-WalletRestartedErrorMessage = {"wallet-restarted": True}
+DefaultErrorResponse = {"error": "Something went wrong, please contact tusc support"}
+InternalServerErrorResponse = {"error": "Internal server error"}
+WalletUnlockResponseNoneResult = {'result': None}
 
-ErrorCodeSuccess = 0
-ErrorCodeFailedWithResponse = 1
-ErrorCodeFailedMethodNameResponse = 2
-ErrorCodeFailedRestartedWallet = 3
-
-tusc_api_cfg = cfg["tusc_api"]
-general_cfg = cfg["general"]
-wallet_cfg = cfg["wallet"]
 
 def build_request_dict(method_name: str, params: list) -> dict:
     tusc_wallet_command_structure = {
@@ -32,46 +26,21 @@ def build_request_dict(method_name: str, params: list) -> dict:
 
 
 def get_tusc_url() -> str:
-    return "http://" + \
-           tusc_api_cfg["tusc_wallet_ip"] + ":" + \
-           tusc_api_cfg["tusc_wallet_port"] + \
-           tusc_api_cfg["tusc_wallet_rpc_endpoint"]
+    return f'http://{tusc_api_cfg["tusc_wallet_ip"]}:{tusc_api_cfg["tusc_wallet_port"]}' \
+           f'{tusc_api_cfg["tusc_wallet_rpc_endpoint"]}'
 
 
 def suggest_brain_key() -> dict:
-    resp, error = send_request("suggest_brain_key", [], True)
+    wallet_response = start_and_unlock_wallet()
+    if wallet_response != WalletUnlockResponseNoneResult:
+        return wallet_response
 
-    if error == ErrorCodeFailedMethodNameResponse:
-        # handle suggest_brain_key specific errors
-        return DefaultErrorMessage
-    else:
-        return resp
+    def suggest_brain_key_error_handler(api_response_json: dict, do_not_log_data: bool) -> dict:
+        pass
 
-
-def list_account_balances(account_name: str) -> dict:
-    resp, error = send_request("list_account_balances", [account_name])
-
-    if error == ErrorCodeFailedMethodNameResponse:
-        # handle list_account_balances specific errors
-        if "data" in resp["error"].keys():
-            if "stack" in resp["error"]["data"].keys():
-                for stack_obj in resp["error"]["data"]["stack"]:
-                    if "format" in stack_obj:
-                        if "rec && rec->name" in stack_obj["format"]:
-                            return {"error": "Account name '" + account_name + "' could not be found. "}
-
-        return DefaultErrorMessage
-    else:
-        return resp
-
-
-def does_account_exist(account_name: str) -> bool:
-    resp = list_account_balances(account_name)
-
-    if "error" in resp:
-        return False
-    else:
-        return True
+    api_response_json = _send_request("suggest_brain_key", [], True)
+    response = handle_generic_wallet_response(api_response_json, True, suggest_brain_key_error_handler)
+    return response
 
 
 def register_account(account_name: str, public_key: str, referrer: str) -> dict:
@@ -89,87 +58,60 @@ def register_account(account_name: str, public_key: str, referrer: str) -> dict:
     if referrer != "":
         ref = referrer
 
-    resp, error = send_request("register_account",
-                               [account_name,
-                                public_key,  # Owner
-                                public_key,  # Active
-                                tusc_api_cfg["registrar_account_name"],  # Registrar
-                                ref,  # Referrer
-                                75,
-                                True], False)
+    wallet_response = start_and_unlock_wallet()
+    if wallet_response != WalletUnlockResponseNoneResult:
+        return wallet_response
 
-    if error == ErrorCodeFailedMethodNameResponse:
-        if "data" in resp["error"].keys():
-            if "stack" in resp["error"]["data"].keys():
-                for stack_obj in resp["error"]["data"]["stack"]:
-                    if "format" in stack_obj:
-                        if "rec && rec->name" in stack_obj["format"]:
-                            return {"error": "Account name '" + account_name + "' already in use. "
-                                                                               "Please use a different account name."}
+    wallet_api_response = _send_request("register_account",
+                             [account_name,
+                              public_key,  # Owner
+                              public_key,  # Active
+                              tusc_api_cfg["registrar_account_name"],  # Registrar
+                              ref,  # Referrer
+                              75,
+                              True], False)
 
-                        if "is_valid_name(name" in stack_obj["format"]:
-                            logger.error("Account name already exists")
-                            return {"error": "Account name '" + account_name + "' is invalid. " +
-                                             account_name_restrictions}
+    def register_account_error_handler(api_response_json: dict, do_not_log_data: bool) -> dict:
+        return _register_account_error_handler_imp(api_response_json, account_name, account_name_restrictions, public_key)
 
-                        if "base58str.size() > prefix_len:" in stack_obj["format"]:
-                            logger.error("Public key error")
-                            return {"error": "The public key '" + public_key + "' is invalid. Please double check "
-                                                                               "that it is correct and resubmit."}
-
-        return DefaultErrorMessage
-    elif error == ErrorCodeFailedRestartedWallet:
-        return WalletRestartedErrorMessage
-    else:
+    response = handle_generic_wallet_response(wallet_api_response, False, register_account_error_handler)
+    if 'error' not in response:
         db.save_completed_registration(account_name, public_key)
-        return resp
+
+    return response
 
 
-def get_account(account_name: str) -> dict:
-    resp, error = send_request("get_account", [account_name], True)
+def _register_account_error_handler_imp(api_response_json: dict,
+                                        account_name: str,
+                                        account_name_restrictions: str,
+                                        public_key: str) -> dict:
+    if "data" in api_response_json["error"].keys():
+        if "stack" in api_response_json["error"]["data"].keys():
+            for stack_obj in api_response_json["error"]["data"]["stack"]:
+                if "format" in stack_obj:
+                    if "rec && rec->name" in stack_obj["format"]:
+                        return {"error": "Account name '" + account_name + "' already in use. "
+                                                                           "Please use a different account name."}
 
-    if error == ErrorCodeFailedMethodNameResponse:
-        return DefaultErrorMessage
-    else:
-        return resp
+                    if "is_valid_name(name" in stack_obj["format"]:
+                        logger.error("Account name already exists")
+                        return {"error": "Account name '" + account_name + "' is invalid. " +
+                                         account_name_restrictions}
 
+                    if "base58str.size() > prefix_len:" in stack_obj["format"]:
+                        logger.error("Public key error")
+                        return {"error": "The public key '" + public_key + "' is invalid. Please double check "
+                                                                           "that it is correct and resubmit."}
 
-def unlock(password: str) -> dict:
-    resp, error = send_request("unlock", [password], True)
-
-    if error == ErrorCodeFailedMethodNameResponse:
-        return DefaultErrorMessage
-    else:
-        return resp
-
-
-def get_account_public_key(account_name: str) -> str:
-    resp, error = send_request("get_account", [account_name], True)
-
-    if error == ErrorCodeFailedMethodNameResponse:
-        return "ERROR"
-    else:
-        # find the account's public key and return that
-        return resp["result"]["owner"]["key_auths"][0][0]
+    return DefaultErrorResponse
 
 
-def send_request(method_name: str, params: list, do_not_log_data=False) -> (dict, int):
-    if general_cfg["testing"]:
-        if method_name == "get_account":
-            return {"error": "TEST RESPONSE: failed"}, ErrorCodeSuccess
-        if method_name == "transfer":
-            return {}, ErrorCodeSuccess
-        if method_name == "list_account_balances":
-            return {}, ErrorCodeSuccess
-        if method_name == "register_account":
-            if params[0] == 'restart-wallet':
-                restart_wallet()
-                return {"error": "TEST RESPONSE: restarted wallet"}, ErrorCodeFailedRestartedWallet
-            else:
-                return {"error": "TEST RESPONSE: already in use"}, ErrorCodeSuccess
+def unlock_wallet(password: str) -> dict:
+    api_response_json = _send_request("unlock", [password], True)
+    return handle_generic_wallet_response(api_response_json, True, None)
 
-    # when error is ErrorCodeFailedWithResponse, pass back to caller.
-    # When error is ErrorCodeFailedMethodNameResponse, handle per method_name
+
+def _send_request(method_name: str, params: list, do_not_log_data=False) -> dict:
     req = build_request_dict(method_name, params)
 
     # POST with JSON
@@ -183,36 +125,48 @@ def send_request(method_name: str, params: list, do_not_log_data=False) -> (dict
 
     logger.debug("posting to: " + str(url))
 
-    # TODO: Handle timeouts if wallet isn't online
     try:
         r = requests.post(url, data=command_json)
     except Exception as err:
         logger.error(err)
-        return {"error": "Internal server error"}, ErrorCodeFailedWithResponse
+        raise err
 
     try:
         api_response_json = json.loads(r.text)
+        return api_response_json
 
-        if "result" in api_response_json.keys():
-            if do_not_log_data is False:
-                logger.debug("Command response: " + str(api_response_json))
-            return {"result": api_response_json["result"]}, ErrorCodeSuccess
-        elif "error" in api_response_json.keys():
-            logger.error("Error in response from TUSC api")
-            logger.error("Command response: " + str(api_response_json))
-            generic_errors_handled, error_code = handle_generic_tusc_errors(api_response_json)
-            return generic_errors_handled, error_code
-        else:
-            logger.error("Unsure what happened with TUSC API")
-            logger.error("Command response: " + str(api_response_json))
-
-            return DefaultErrorMessage, ErrorCodeFailedWithResponse
     except json.JSONDecodeError as err:
         logger.error(err)
-        return {"error": "Internal server error"}, ErrorCodeFailedWithResponse
+        raise err
 
 
-def handle_generic_tusc_errors(api_response_json: dict) -> (dict, int):
+def handle_generic_wallet_response(
+        api_response_json: dict,
+        do_not_log_data: bool,
+        error_handler_func: typing.Callable[[dict, bool], dict]) -> dict:
+    response = None
+
+    if "result" in api_response_json.keys():
+        if do_not_log_data is False:
+            logger.debug("Command response: " + str(api_response_json))
+        response = {"result": api_response_json["result"]}
+    elif "error" in api_response_json.keys():
+        logger.error("Error in response from TUSC api")
+        logger.error("Command response: " + str(api_response_json))
+        response = handle_generic_tusc(api_response_json)
+
+    if error_handler_func is not None and response is None:
+        response = error_handler_func(api_response_json, do_not_log_data)
+
+    if response is None:
+        logger.error("Unsure what happened with TUSC API")
+        logger.error("Command response: " + str(api_response_json))
+        response = DefaultErrorResponse
+
+    return response
+
+
+def handle_generic_tusc(api_response_json: dict) -> dict:
     if "data" in api_response_json["error"].keys():
         if "stack" in api_response_json["error"]["data"].keys():
             for stack_obj in api_response_json["error"]["data"]["stack"]:
@@ -221,38 +175,70 @@ def handle_generic_tusc_errors(api_response_json: dict) -> (dict, int):
                     # Wallet is locked
                     if "is_locked" in stack_obj["format"]:
                         logger.error("Cannot perform operation, TUSC Wallet is locked")
-                        return DefaultErrorMessage, ErrorCodeFailedWithResponse
+                        return DefaultErrorResponse
+
+                    # Incorrect password used on wallet
+                    if "during aes 256" in stack_obj["format"]:
+                        logger.error("Cannot perform operation, "
+                                     "incorrect wallet password, TUSC Wallet cannot be unlocked")
+                        return DefaultErrorResponse
+
                 if "data" in stack_obj:
                     if "msg" in stack_obj["data"]:
                         if "invalid state" in stack_obj["data"]["msg"]:
                             # Wallet in invalid state, needs to be restarted.
                             logger.error("Cannot perform operation, TUSC Wallet is in invalid state")
+                            return DefaultErrorResponse
 
-                            restart_wallet()
-
-                            return DefaultErrorMessage, ErrorCodeFailedRestartedWallet
-
-    return api_response_json, ErrorCodeFailedMethodNameResponse
+    return None
 
 
-def restart_wallet():
-    logger.info("Stopping TUSC Wallet")
-    base_cmd = 'screen -S cli -p 0 -X stuff '
-    subprocess.call(base_cmd + '"^C"', shell=True)
-    subprocess.call(base_cmd + '"^C"', shell=True)
+def start_wallet() -> subprocess:
+    logger.info("Starting TUSC Wallet")
 
-    # Wait for it to die gracefully
-    time.sleep(2)
+    wallet_proc = subprocess.Popen(
+        [
+            os.path.expanduser(wallet_cfg["path"]),
+            '-s',
+            wallet_cfg["node_address"],
+            '--chain-id',
+            wallet_cfg["chain_id"],
+            '-H',
+            '0.0.0.0:5071',
+            '-w',
+            os.path.expanduser(wallet_cfg["wallet_config_file"]),
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    wallet_proc.stdin.flush()
+    successfully_started_message = 'Listening for incoming HTTP and WS RPC requests'
+    http_issue = 'Invalid HTTP status'
+    for x in range(4):
+        wallet_stderr = wallet_proc.stderr.readline()
 
-    logger.info("Restarting TUSC Wallet")
-    wallet_path_param = wallet_cfg["path"]
-    chain_id_param = '--chain-id \"' + wallet_cfg["chain_id"] + '\" '
-    node_address_param = '-s ' + wallet_cfg["node_address"] + ' -H 0.0.0.0:5071\n"'
-    subprocess.call(base_cmd + '"' + wallet_path_param + ' ' + chain_id_param + node_address_param, shell=True)
-    time.sleep(2)
+        logger.info(f"TUSC Wallet stderr: {wallet_stderr}")
 
-    logger.info("Unlocking TUSC Wallet")
-    subprocess.call(base_cmd + '"unlock ' + wallet_cfg["wallet_password"] + '\n"', shell=True)
+        if successfully_started_message in wallet_stderr:
+            logger.info("TUSC Wallet started successfully")
+            return wallet_proc
+        elif http_issue in wallet_stderr:
+            logger.error("TUSC Wallet failed to start due to an HTTP error")
+            raise Exception("TUSC Wallet failed to start due to an HTTP error")
+
+    raise TimeoutError("Timed out while waiting for TUSC wallet to start")
+
+
+def start_and_unlock_wallet() -> dict:
+    try:
+        start_wallet()
+    except Exception as e:
+        logger.error(f"Error starting wallet: {str(e)}")
+        return DefaultErrorResponse
+
+    return unlock_wallet(wallet_cfg["wallet_password"])
 
 
 logger.debug('loaded')

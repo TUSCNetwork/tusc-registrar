@@ -36,19 +36,6 @@ def suggest_brain_key():
     logger.debug('suggest_brain_key, request from ' + get_real_ip())
     return gate_tusc_api.suggest_brain_key()
 
-
-@tusc_api.route('/wallet/unlock/<password>', methods=["GET"])
-def unlock(password):
-    logger.debug('unlock, request from ' + get_real_ip())
-    return gate_tusc_api.unlock(password)
-
-
-@tusc_api.route('/wallet/list_account_balances/<account_name>', methods=["GET"])
-def list_account_balances(account_name):
-    logger.debug('list_account_balances, request from ' + get_real_ip())
-    return gate_tusc_api.list_account_balances(account_name)
-
-
 # Accepted fields: account_name (str), public_key (str)
 @tusc_api.route('/wallet/register_account', methods=["POST"])
 def register_account():
@@ -79,14 +66,7 @@ def register_account():
         referrer = content['referrer']
 
     if 'account_name' in content and 'public_key' in content:
-        if general_cfg["testing"]:
-            res = gate_tusc_api.register_account('restart-wallet', content['public_key'], referrer)
-        else:
-            res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
-
-        if 'wallet-restarted' in res:
-            # Resubmit request
-            res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
+        res = gate_tusc_api.register_account(content['account_name'], content['public_key'], referrer)
 
         if 'error' not in res:
             now = datetime.now()
@@ -143,12 +123,5 @@ def handle_captcha(captcha_response, ip) -> bool:
 # Note that OCC uses 18 decimal places of precision and TUSC uses 5. So the above values are really:
 # OCC: 102348857281.025782841613573730
 # TUSC: 51174428640.51290
-
-#TODO
-# @tusc_api.route('/db/swap_stats', methods=["GET"])
-# def swap_stats():
-#     logger.debug('swap_stats, request from ' + get_real_ip())
-#     return db.get_swap_stats()
-
 
 logger.debug('loaded')
